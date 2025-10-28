@@ -2,8 +2,6 @@ import { NextResponse } from 'next/server';
 
 import { checkForUpdates, getCurrentVersionInfo } from '@/lib/version';
 
-export const dynamic = 'force-dynamic';
-
 /**
  * 版本检查 API
  * GET /api/version/check - 检查当前版本状态和是否有更新

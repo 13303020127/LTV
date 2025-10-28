@@ -2,8 +2,8 @@
 /* eslint-disable @typescript-eslint/no-var-requires */
 
 const nextConfig = {
-  // Cloudflare Pages兼容的输出配置
-  output: 'export',
+  // 使用Cloudflare Pages Functions模式
+  output: 'standalone',
   eslint: {
     dirs: ['src'],
   },
