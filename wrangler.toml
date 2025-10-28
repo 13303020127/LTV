@@ -1,0 +1,17 @@
+name = "decotv"
+compatibility_date = "2024-10-27"
+compatibility_flags = ["nodejs_compat"]
+
+# 全局变量
+[vars]
+DEBUG = "false"
+
+# 环境变量配置 - 生产环境
+[env.production]
+[env.production.vars]
+DEBUG = "false"
+
+# 环境变量配置 - 开发环境
+[env.development]
+[env.development.vars]
+DEBUG = "true"

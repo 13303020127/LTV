@@ -1,0 +1,5 @@
+# 代理路径重定向
+/proxy/* /api/proxy/:splat 200
+
+# SPA fallback - 所有未匹配的路径都重定向到index.html
+/* /index.html 200
