@@ -1,3 +1,8 @@
+// 服务器组件，不需要'use client'指令
+
+// 强制页面在服务器端动态渲染，而不是在构建时预渲染
+export const dynamic = 'force-dynamic';
+
 import { Metadata } from 'next';
 
 export const metadata: Metadata = {

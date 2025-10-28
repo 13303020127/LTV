@@ -230,20 +230,30 @@ async function getInitConfig(configFile: string, subConfig: {
   // 补充用户信息
   let userNames: string[] = [];
   try {
-    userNames = await db.getAllUsers();
+    // 即使getAllUsers返回null，也确保userNames是数组
+    const users = await db.getAllUsers();
+    userNames = Array.isArray(users) ? users : [];
   } catch (e) {
     console.error('获取用户列表失败:', e);
+    userNames = [];
   }
-  const allUsers = userNames.filter((u) => u !== process.env.USERNAME).map((u) => ({
+  
+  const allUsers = userNames.filter((u) => u && u !== process.env.USERNAME).map((u) => ({
     username: u,
     role: 'user',
     banned: false,
   }));
+  
+  const ownerUsername = process.env.USERNAME || 'admin';
   allUsers.unshift({
-    username: process.env.USERNAME!,
+    username: ownerUsername,
     role: 'owner',
     banned: false,
   });
+  
+  if (!adminConfig.UserConfig) {
+    adminConfig.UserConfig = { Users: [] };
+  }
   adminConfig.UserConfig.Users = allUsers as any;
 
   // 从配置文件中补充源信息
@@ -295,26 +305,110 @@ export async function getConfig(): Promise<AdminConfig> {
     return cachedConfig;
   }
 
-  // 读 db
-  let adminConfig: AdminConfig | null = null;
   try {
-    adminConfig = await db.getAdminConfig();
-  } catch (e) {
-    console.error('获取管理员配置失败:', e);
-  }
+    // 读 db
+    let adminConfig: AdminConfig | null = null;
+    try {
+      adminConfig = await db.getAdminConfig();
+    } catch (e) {
+      console.error('获取管理员配置失败:', e);
+    }
 
-  // db 中无配置，执行一次初始化
-  if (!adminConfig) {
-    adminConfig = await getInitConfig("");
+    // db 中无配置或配置无效，执行一次初始化
+    if (!adminConfig || typeof adminConfig !== 'object') {
+      adminConfig = await getInitConfig("");
+    }
+    
+    // 确保adminConfig是有效的AdminConfig对象
+    adminConfig = configSelfCheck(adminConfig);
+    cachedConfig = adminConfig;
+    
+    // 保存配置，但不阻塞返回
+    try {
+      await db.saveAdminConfig(cachedConfig);
+    } catch (e) {
+      console.error('保存管理员配置失败:', e);
+      // 即使保存失败也返回配置
+    }
+    
+    return cachedConfig;
+  } catch (e) {
+    console.error('获取配置时发生严重错误:', e);
+    // 返回一个最小化的默认配置作为最后的保障
+    const defaultConfig: AdminConfig = {
+      ConfigFile: "",
+      ConfigSubscribtion: { URL: "", AutoUpdate: false, LastCheck: "" },
+      SiteConfig: {
+        SiteName: 'DecoTV',
+        Announcement: '欢迎使用DecoTV',
+        SearchDownstreamMaxPage: 5,
+        SiteInterfaceCacheTime: 7200,
+        DoubanProxyType: 'cmliussss-cdn-tencent',
+        DoubanProxy: '',
+        DoubanImageProxyType: 'cmliussss-cdn-tencent',
+        DoubanImageProxy: '',
+        DisableYellowFilter: false,
+        FluidSearch: true,
+      },
+      UserConfig: {
+        Users: [{
+          username: process.env.USERNAME || 'admin',
+          role: 'owner',
+          banned: false,
+        }],
+      },
+      SourceConfig: [],
+      CustomCategories: [],
+      LiveConfig: [],
+    };
+    cachedConfig = defaultConfig;
+    return defaultConfig;
   }
-  adminConfig = configSelfCheck(adminConfig);
-  cachedConfig = adminConfig;
-  db.saveAdminConfig(cachedConfig);
-  return cachedConfig;
 }
 
 export function configSelfCheck(adminConfig: AdminConfig): AdminConfig {
+  // 安全检查：确保adminConfig是对象
+  if (!adminConfig || typeof adminConfig !== 'object') {
+    return {
+      ConfigFile: "",
+      ConfigSubscribtion: { URL: "", AutoUpdate: false, LastCheck: "" },
+      SiteConfig: {
+        SiteName: 'DecoTV',
+        Announcement: '欢迎使用DecoTV',
+        SearchDownstreamMaxPage: 5,
+        SiteInterfaceCacheTime: 7200,
+        DoubanProxyType: 'cmliussss-cdn-tencent',
+        DoubanProxy: '',
+        DoubanImageProxyType: 'cmliussss-cdn-tencent',
+        DoubanImageProxy: '',
+        DisableYellowFilter: false,
+        FluidSearch: true,
+      },
+      UserConfig: { Users: [] },
+      SourceConfig: [],
+      CustomCategories: [],
+      LiveConfig: [],
+    };
+  }
+  
   // 确保必要的属性存在和初始化
+  if (!adminConfig.ConfigSubscribtion) {
+    adminConfig.ConfigSubscribtion = { URL: "", AutoUpdate: false, LastCheck: "" };
+  }
+  if (!adminConfig.SiteConfig) {
+    adminConfig.SiteConfig = {
+      SiteName: 'DecoTV',
+      Announcement: '欢迎使用DecoTV',
+      SearchDownstreamMaxPage: 5,
+      SiteInterfaceCacheTime: 7200,
+      DoubanProxyType: 'cmliussss-cdn-tencent',
+      DoubanProxy: '',
+      DoubanImageProxyType: 'cmliussss-cdn-tencent',
+      DoubanImageProxy: '',
+      DisableYellowFilter: false,
+      FluidSearch: true,
+    };
+  }
   if (!adminConfig.UserConfig) {
     adminConfig.UserConfig = { Users: [] };
   }
@@ -332,63 +426,54 @@ export function configSelfCheck(adminConfig: AdminConfig): AdminConfig {
   }
 
   // 站长变更自检
-  const ownerUser = process.env.USERNAME;
+  const ownerUser = process.env.USERNAME || 'admin';
 
-  // 去重
+  // 去重和清理无效用户
   const seenUsernames = new Set<string>();
   adminConfig.UserConfig.Users = adminConfig.UserConfig.Users.filter((user) => {
-    if (seenUsernames.has(user.username)) {
-      return false;
-    }
-    seenUsernames.add(user.username);
-    return true;
+    return user && user.username && !seenUsernames.has(user.username) && 
+           user.username !== ownerUser && seenUsernames.add(user.username);
   });
+  
   // 过滤站长
-  const originOwnerCfg = adminConfig.UserConfig.Users.find((u) => u.username === ownerUser);
-  adminConfig.UserConfig.Users = adminConfig.UserConfig.Users.filter((user) => user.username !== ownerUser);
+  const originOwnerCfg = adminConfig.UserConfig.Users.find((u) => u && u.username === ownerUser);
+  
   // 其他用户不得拥有 owner 权限
   adminConfig.UserConfig.Users.forEach((user) => {
-    if (user.role === 'owner') {
+    if (user && user.role === 'owner') {
       user.role = 'user';
     }
   });
+  
   // 重新添加回站长
   adminConfig.UserConfig.Users.unshift({
-    username: ownerUser!,
+    username: ownerUser,
     role: 'owner',
     banned: false,
     enabledApis: originOwnerCfg?.enabledApis || undefined,
     tags: originOwnerCfg?.tags || undefined,
   });
 
-  // 采集源去重
+  // 采集源去重和清理无效源
   const seenSourceKeys = new Set<string>();
   adminConfig.SourceConfig = adminConfig.SourceConfig.filter((source) => {
-    if (seenSourceKeys.has(source.key)) {
-      return false;
-    }
-    seenSourceKeys.add(source.key);
-    return true;
+    return source && source.key && !seenSourceKeys.has(source.key) && 
+           seenSourceKeys.add(source.key);
   });
 
-  // 自定义分类去重
+  // 自定义分类去重和清理无效分类
   const seenCustomCategoryKeys = new Set<string>();
   adminConfig.CustomCategories = adminConfig.CustomCategories.filter((category) => {
-    if (seenCustomCategoryKeys.has(category.query + category.type)) {
-      return false;
-    }
-    seenCustomCategoryKeys.add(category.query + category.type);
-    return true;
+    return category && category.query && category.type && 
+           !seenCustomCategoryKeys.has(category.query + category.type) && 
+           seenCustomCategoryKeys.add(category.query + category.type);
   });
 
-  // 直播源去重
+  // 直播源去重和清理无效直播源
   const seenLiveKeys = new Set<string>();
   adminConfig.LiveConfig = adminConfig.LiveConfig.filter((live) => {
-    if (seenLiveKeys.has(live.key)) {
-      return false;
-    }
-    seenLiveKeys.add(live.key);
-    return true;
+    return live && live.key && !seenLiveKeys.has(live.key) && 
+           seenLiveKeys.add(live.key);
   });
 
   return adminConfig;

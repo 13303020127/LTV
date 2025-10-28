@@ -4,22 +4,27 @@ import { NextRequest, NextResponse } from 'next/server';
 export const runtime = 'nodejs';
 
 function getBaseUrl(req: NextRequest): string {
-  const envBase = (process.env.NEXT_PUBLIC_SITE_BASE || '')
-    .trim()
-    .replace(/\/$/, '');
-  if (envBase) return envBase;
-  const proto = (req.headers.get('x-forwarded-proto') || 'https')
-    .split(',')[0]
-    .trim();
-  const host = (
-    req.headers.get('x-forwarded-host') ||
-    req.headers.get('host') ||
-    ''
-  )
-    .split(',')[0]
-    .trim();
-  if (!host) return '';
-  return `${proto}://${host}`;
+  try {
+    const envBase = (process.env.NEXT_PUBLIC_SITE_BASE || '')
+      .trim()
+      .replace(/\/$/, '');
+    if (envBase) return envBase;
+    const proto = ((req.headers.get('x-forwarded-proto') || 'https')
+      .split(',')[0]
+      .trim()) as string;
+    const host = ((
+      req.headers.get('x-forwarded-host') ||
+      req.headers.get('host') ||
+      ''
+    )
+      .split(',')[0]
+      .trim()) as string;
+    if (!host) return process.env.NEXT_PUBLIC_BASE_URL || 'https://localhost:3000';
+    return `${proto}://${host}`;
+  } catch (error) {
+    // 安全回退，避免 headers 访问导致的动态服务器错误
+    return process.env.NEXT_PUBLIC_BASE_URL || 'https://localhost:3000';
+  }
 }
 
 function isPrivateHost(urlStr: string): boolean {
@@ -67,22 +72,31 @@ async function tryFetchHead(
 
 export async function GET(req: NextRequest) {
   try {
-    const baseUrl = getBaseUrl(req);
+    // 获取基础URL (使用try-catch避免headers访问错误)
+    let baseUrl = 'https://localhost:3000';
+    try {
+      baseUrl = getBaseUrl(req) || process.env.NEXT_PUBLIC_BASE_URL || 'https://localhost:3000';
+    } catch (error) {
+      baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://localhost:3000';
+    }
     if (!baseUrl) {
-      return NextResponse.json(
-        { ok: false, error: 'cannot determine base url' },
-        { status: 500 }
-      );
+      baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://localhost:3000';
     }
 
     const configUrl = `${baseUrl}/api/tvbox/config?format=json&mode=safe`;
     const cfgRes = await fetch(configUrl, { cache: 'no-store' });
     const contentType = cfgRes.headers.get('content-type') || '';
     const text = await cfgRes.text();
-    let parsed: any = null;
+    // 添加默认值避免空指针异常
+    let parsed: any = { sites: [], lives: [], parses: [], spider: '' };
     let parseError: string | undefined;
     try {
       parsed = JSON.parse(text);
+      // 确保必要属性存在，避免空指针异常
+      parsed.sites = Array.isArray(parsed.sites) ? parsed.sites : [];
+      parsed.lives = Array.isArray(parsed.lives) ? parsed.lives : [];
+      parsed.parses = Array.isArray(parsed.parses) ? parsed.parses : [];
+      parsed.spider = parsed.spider || '';
     } catch (e: any) {
       parseError = e?.message || 'json parse error';
     }

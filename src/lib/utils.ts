@@ -27,10 +27,15 @@ function getDoubanImageProxyConfig(): {
 }
 
 /**
- * 处理图片 URL，如果设置了图片代理则使用代理
+ * 处理图片 URL，如果设置了图片代理则使用代理，同时确保使用HTTPS协议
  */
 export function processImageUrl(originalUrl: string): string {
   if (!originalUrl) return originalUrl;
+  
+  // 确保使用HTTPS协议，特别是对于lain.bgm.tv域名
+  if (originalUrl.includes('lain.bgm.tv')) {
+    return originalUrl.replace('http://', 'https://');
+  }
 
   // 仅处理豆瓣图片代理
   if (!originalUrl.includes('doubanio.com')) {

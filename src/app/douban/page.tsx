@@ -2,6 +2,9 @@
 
 'use client';
 
+// 强制动态渲染，避免构建时预渲染错误
+export const dynamic = 'force-dynamic';
+
 import { useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';

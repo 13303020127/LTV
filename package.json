@@ -19,6 +19,8 @@
     "prepare": "husky install",
     "vercel-build": "pnpm gen:manifest && next build",
     "cloudflare-build": "pnpm gen:manifest && next build",
+    "export": "next export",
+    "build-only": "pnpm gen:manifest && next build",
     "docker:build": "docker build -t decotv .",
     "docker:run": "docker run -p 3000:3000 decotv"
   },

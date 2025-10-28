@@ -2,6 +2,9 @@
 
 'use client';
 
+// 强制页面在服务器端动态渲染，而不是在构建时预渲染
+export const dynamic = 'force-dynamic';
+
 import { ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import { Suspense, useEffect, useState } from 'react';

@@ -1,6 +1,9 @@
 /* eslint-disable react-hooks/exhaustive-deps, @typescript-eslint/no-explicit-any,@typescript-eslint/no-non-null-assertion,no-empty */
 'use client';
 
+// 强制动态渲染，避免构建时预渲染错误
+export const dynamic = 'force-dynamic';
+
 import { ChevronUp, Search, X } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import React, {

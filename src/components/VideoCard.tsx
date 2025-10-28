@@ -545,41 +545,87 @@ const VideoCard = forwardRef<VideoCardHandle, VideoCardProps>(function VideoCard
         >
           {/* 骨架屏 */}
           {!isLoading && <ImagePlaceholder aspectRatio='aspect-[2/3]' />}
-          {/* 图片 */}
-          <Image
-            src={processImageUrl(actualPoster)}
-            alt={actualTitle}
-            fill
-            className={origin === 'live' ? 'object-contain' : 'object-cover'}
-            referrerPolicy='no-referrer'
-            loading='lazy'
-            onLoadingComplete={() => setIsLoading(true)}
-            onError={(e) => {
-              // 图片加载失败时的重试机制
-              const img = e.target as HTMLImageElement;
-              if (!img.dataset.retried) {
-                img.dataset.retried = 'true';
-                setTimeout(() => {
-                  img.src = processImageUrl(actualPoster);
-                }, 2000);
-              }
-            }}
-            style={{
-              // 禁用图片的默认长按效果
-              WebkitUserSelect: 'none',
-              userSelect: 'none',
-              WebkitTouchCallout: 'none',
-              pointerEvents: 'none', // 图片不响应任何指针事件
-            } as React.CSSProperties}
-            onContextMenu={(e) => {
-              e.preventDefault();
-              return false;
-            }}
-            onDragStart={(e) => {
-              e.preventDefault();
-              return false;
-            }}
-          />
+          {/* 图片 - 对lain.bgm.tv域名的图片使用原生img标签，避免Next.js优化问题 */}
+          {actualPoster?.includes('lain.bgm.tv') ? (
+            <img
+              src={processImageUrl(actualPoster)}
+              alt={actualTitle}
+              className={`absolute inset-0 w-full h-full ${origin === 'live' ? 'object-contain' : 'object-cover'}`}
+              referrerPolicy='no-referrer'
+              loading='lazy'
+              onLoad={useCallback(() => {
+                // 使用useCallback包装，避免渲染期间直接更新state
+                setTimeout(() => setIsLoading(true), 0);
+              }, [])}
+              onError={useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
+                // 使用useCallback包装，避免渲染期间直接更新DOM和闭包问题
+                const img = e.target as HTMLImageElement;
+                if (!img.dataset.retried) {
+                  img.dataset.retried = 'true';
+                  // 创建一个新的闭包来保存当前的poster值
+                  const currentPoster = actualPoster;
+                  setTimeout(() => {
+                    img.src = processImageUrl(currentPoster);
+                  }, 2000);
+                }
+              }, [actualPoster, processImageUrl])}
+              style={{
+                // 禁用图片的默认长按效果
+                WebkitUserSelect: 'none',
+                userSelect: 'none',
+                WebkitTouchCallout: 'none',
+                pointerEvents: 'none', // 图片不响应任何指针事件
+              } as React.CSSProperties}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                return false;
+              }}
+              onDragStart={(e) => {
+                e.preventDefault();
+                return false;
+              }}
+            />
+          ) : (
+            <Image
+              src={processImageUrl(actualPoster)}
+              alt={actualTitle}
+              fill
+              className={origin === 'live' ? 'object-contain' : 'object-cover'}
+              referrerPolicy='no-referrer'
+              loading='lazy'
+              onLoadingComplete={useCallback(() => {
+                // 使用useCallback包装，避免渲染期间直接更新state
+                setTimeout(() => setIsLoading(true), 0);
+              }, [])}
+              onError={useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
+                // 使用useCallback包装，避免渲染期间直接更新DOM和闭包问题
+                const img = e.target as HTMLImageElement;
+                if (!img.dataset.retried) {
+                  img.dataset.retried = 'true';
+                  // 创建一个新的闭包来保存当前的poster值
+                  const currentPoster = actualPoster;
+                  setTimeout(() => {
+                    img.src = processImageUrl(currentPoster);
+                  }, 2000);
+                }
+              }, [actualPoster, processImageUrl])}
+              style={{
+                // 禁用图片的默认长按效果
+                WebkitUserSelect: 'none',
+                userSelect: 'none',
+                WebkitTouchCallout: 'none',
+                pointerEvents: 'none', // 图片不响应任何指针事件
+              } as React.CSSProperties}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                return false;
+              }}
+              onDragStart={(e) => {
+                e.preventDefault();
+                return false;
+              }}
+            />
+          )}
 
           {/* 悬浮遮罩 */}
           <div
