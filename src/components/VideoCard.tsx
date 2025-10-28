@@ -96,6 +96,26 @@ const VideoCard = forwardRef<VideoCardHandle, VideoCardProps>(function VideoCard
     douban_id
   );
 
+  // 图片加载处理函数
+  const handleImageLoad = useCallback(() => {
+    // 使用useCallback包装，避免渲染期间直接更新state
+    setTimeout(() => setIsLoading(true), 0);
+  }, []);
+
+  // 图片错误处理函数
+  const handleImageError = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
+    // 使用useCallback包装，避免渲染期间直接更新DOM和闭包问题
+    const img = e.target as HTMLImageElement;
+    if (!img.dataset.retried) {
+      img.dataset.retried = 'true';
+      // 创建一个新的闭包来保存当前的poster值
+      const currentPoster = poster;
+      setTimeout(() => {
+        img.src = processImageUrl(currentPoster);
+      }, 2000);
+    }
+  }, [poster, processImageUrl]);
+
   useEffect(() => {
     setDynamicEpisodes(episodes);
   }, [episodes]);
@@ -553,22 +573,8 @@ const VideoCard = forwardRef<VideoCardHandle, VideoCardProps>(function VideoCard
               className={`absolute inset-0 w-full h-full ${origin === 'live' ? 'object-contain' : 'object-cover'}`}
               referrerPolicy='no-referrer'
               loading='lazy'
-              onLoad={useCallback(() => {
-                // 使用useCallback包装，避免渲染期间直接更新state
-                setTimeout(() => setIsLoading(true), 0);
-              }, [])}
-              onError={useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
-                // 使用useCallback包装，避免渲染期间直接更新DOM和闭包问题
-                const img = e.target as HTMLImageElement;
-                if (!img.dataset.retried) {
-                  img.dataset.retried = 'true';
-                  // 创建一个新的闭包来保存当前的poster值
-                  const currentPoster = actualPoster;
-                  setTimeout(() => {
-                    img.src = processImageUrl(currentPoster);
-                  }, 2000);
-                }
-              }, [actualPoster, processImageUrl])}
+              onLoad={handleImageLoad}
+              onError={handleImageError}
               style={{
                 // 禁用图片的默认长按效果
                 WebkitUserSelect: 'none',
@@ -593,22 +599,8 @@ const VideoCard = forwardRef<VideoCardHandle, VideoCardProps>(function VideoCard
               className={origin === 'live' ? 'object-contain' : 'object-cover'}
               referrerPolicy='no-referrer'
               loading='lazy'
-              onLoadingComplete={useCallback(() => {
-                // 使用useCallback包装，避免渲染期间直接更新state
-                setTimeout(() => setIsLoading(true), 0);
-              }, [])}
-              onError={useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
-                // 使用useCallback包装，避免渲染期间直接更新DOM和闭包问题
-                const img = e.target as HTMLImageElement;
-                if (!img.dataset.retried) {
-                  img.dataset.retried = 'true';
-                  // 创建一个新的闭包来保存当前的poster值
-                  const currentPoster = actualPoster;
-                  setTimeout(() => {
-                    img.src = processImageUrl(currentPoster);
-                  }, 2000);
-                }
-              }, [actualPoster, processImageUrl])}
+              onLoadingComplete={handleImageLoad}
+              onError={handleImageError}
               style={{
                 // 禁用图片的默认长按效果
                 WebkitUserSelect: 'none',
