@@ -14,7 +14,7 @@ DEBUG = "false"
 [env.production.vars]
 DEBUG = "false"
 
-# 环境变量配置 - 开发环境
-[env.development]
-[env.development.vars]
+# 环境变量配置 - 预览环境
+[env.preview]
+[env.preview.vars]
 DEBUG = "true"
